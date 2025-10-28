@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SwipeCard } from "./SwipeCard";
 import { CheckoutDialog } from "./CheckoutDialog";
 import { Button } from "@/components/ui/button";
+import { getCredits, setCredits } from "@/lib/credits";
 import { ShoppingBag, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,28 +49,61 @@ export const SwipeSection = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [credits, setCreditsState] = useState<number>(getCredits());
+  const [collectedPoints, setCollectedPoints] = useState(0);
 
   const handleSwipe = (direction: 'left' | 'right') => {
     if (direction === 'right') {
+      const pts = mockItems[currentIndex % mockItems.length].points;
       setCartCount(prev => prev + 1);
+      setCollectedPoints(prev => prev + pts);
       toast.success("Item added to cart!");
     }
     
     setTimeout(() => {
-      if (currentIndex < mockItems.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-      } else {
-        setCurrentIndex(0);
-      }
+      setCurrentIndex(prev => (prev + 1) % mockItems.length);
     }, 300);
   };
 
   const handleCheckoutConfirm = () => {
+    const totalPoints = collectedPoints;
+    const currentCredits = getCredits();
+    if (totalPoints > currentCredits) {
+      toast.error("Not enough credits. Please buy or donate to earn more.");
+      return;
+    }
+
+    // Deduct credits and persist
+    const remaining = currentCredits - totalPoints;
+    setCredits(remaining);
+    setCreditsState(remaining);
+
     setCartCount(0);
+    setCollectedPoints(0);
     toast.success("Thank you! See you at pickup time.");
+
+    // Increment checkout counter in localStorage and notify listeners (e.g., Hero)
+    const key = 'rewearCheckoutCount';
+    const current = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+    const next = current + 1;
+    localStorage.setItem(key, String(next));
+    // Dispatch a custom event so other components can update live
+    window.dispatchEvent(new CustomEvent<number>('checkout:increment', { detail: next }));
   };
 
-  const currentItem = mockItems[currentIndex];
+  const currentItem = mockItems[currentIndex % mockItems.length];
+  const totalPoints = collectedPoints;
+
+  // Keep local credits in sync with global updates
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<number>).detail;
+      if (typeof detail === 'number') setCreditsState(detail);
+      else setCreditsState(getCredits());
+    };
+    window.addEventListener('credits:update', handler as EventListener);
+    return () => window.removeEventListener('credits:update', handler as EventListener);
+  }, []);
 
   return (
     <section id="swipe-section" className="py-20 bg-gradient-soft">
@@ -102,10 +136,12 @@ export const SwipeSection = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-foreground">Your Cart</h3>
-                  <p className="text-sm text-muted-foreground">Items collected this session</p>
+                  <p className="text-sm text-muted-foreground">Items and required credits</p>
                 </div>
               </div>
               <div className="text-4xl font-bold text-primary">{cartCount}</div>
+              <div className="mt-2 text-sm text-muted-foreground">Total credits needed: <span className="font-semibold text-foreground">{totalPoints}</span></div>
+              <div className="mt-1 text-sm text-muted-foreground">Your credits: <span className="font-semibold text-foreground">{credits}</span></div>
             </div>
 
             <div className="bg-gradient-card rounded-3xl p-8 shadow-soft">
@@ -137,7 +173,7 @@ export const SwipeSection = () => {
                 onClick={() => setCheckoutOpen(true)}
                 disabled={cartCount === 0}
               >
-                Checkout ({cartCount} items)
+                Checkout ({cartCount} items, needs {totalPoints} credits)
               </Button>
             </div>
           </div>
@@ -148,6 +184,8 @@ export const SwipeSection = () => {
           onOpenChange={setCheckoutOpen}
           cartCount={cartCount}
           onConfirm={handleCheckoutConfirm}
+          requiredCredits={totalPoints}
+          userCredits={credits}
         />
       </div>
     </section>

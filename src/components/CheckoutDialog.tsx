@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, Clock, MapPin, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,8 @@ interface CheckoutDialogProps {
   onOpenChange: (open: boolean) => void;
   cartCount: number;
   onConfirm: () => void;
+  requiredCredits: number;
+  userCredits: number;
 }
 
 const timeSlots = [
@@ -43,10 +46,17 @@ const timeSlots = [
   "5:00 PM",
 ];
 
-export const CheckoutDialog = ({ open, onOpenChange, cartCount, onConfirm }: CheckoutDialogProps) => {
+export const CheckoutDialog = ({ open, onOpenChange, cartCount, onConfirm, requiredCredits, userCredits }: CheckoutDialogProps) => {
   const [date, setDate] = useState<Date>();
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [time, setTime] = useState<string>();
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const navigate = useNavigate();
+
+  // Assume each of the first `cartCount` items costs points like in SwipeSection.
+  // For a demo, approximate average 3 credits per item and show guidance. The
+  // exact deduction happens in SwipeSection with real per-item points.
+  const estimatedNeeded = useMemo(() => Math.max(0, cartCount * 3), [cartCount]);
 
   const handleConfirm = () => {
     setIsConfirmed(true);
@@ -66,21 +76,52 @@ export const CheckoutDialog = ({ open, onOpenChange, cartCount, onConfirm }: Che
       <DialogContent className="max-w-md">
         {!isConfirmed ? (
           <>
-            <DialogHeader>
-              <DialogTitle className="text-2xl">Schedule Your Pickup</DialogTitle>
-              <DialogDescription>
-                You have {cartCount} {cartCount === 1 ? 'item' : 'items'} in your cart. Choose when you'd like to pick them up.
-              </DialogDescription>
-            </DialogHeader>
+            {userCredits < requiredCredits ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">Not enough credits</DialogTitle>
+                  <DialogDescription>
+                    You need <strong>{requiredCredits}</strong> credits for {cartCount} {cartCount === 1 ? 'item' : 'items'}, but you only have <strong>{userCredits}</strong>.
+                  </DialogDescription>
+                </DialogHeader>
 
-            <div className="space-y-6 py-4">
+                <div className="space-y-3 py-4">
+                  <Button className="w-full" variant="default" onClick={() => { onOpenChange(false); navigate('/buy-credits'); }}>
+                    Buy Credits
+                  </Button>
+                  <Button className="w-full" variant="outline" onClick={() => { onOpenChange(false); navigate('/donate'); }}>
+                    Donate Clothes to Earn Credits
+                  </Button>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => onOpenChange(false)}
+                    className="flex-1"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">Schedule Your Pickup</DialogTitle>
+                  <DialogDescription>
+                    You have {cartCount} {cartCount === 1 ? 'item' : 'items'} in your cart.
+                    Your credits: <strong>{userCredits}</strong>. Credits needed: <strong>{requiredCredits}</strong>.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6 py-4">
               {/* Date Picker */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-primary" />
                   Pickup Date
                 </label>
-                <Popover>
+                <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -97,7 +138,7 @@ export const CheckoutDialog = ({ open, onOpenChange, cartCount, onConfirm }: Che
                     <Calendar
                       mode="single"
                       selected={date}
-                      onSelect={setDate}
+                      onSelect={(d) => { setDate(d); setIsDatePopoverOpen(false); }}
                       disabled={(date) =>
                         date < new Date() || date.getDay() === 0 || date.getDay() === 6
                       }
@@ -137,25 +178,27 @@ export const CheckoutDialog = ({ open, onOpenChange, cartCount, onConfirm }: Che
                   <p className="text-muted-foreground text-xs mt-1">Ground Floor, Main Building</p>
                 </div>
               </div>
-            </div>
+                </div>
 
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                onClick={handleConfirm}
-                disabled={!canConfirm}
-                className="flex-1"
-              >
-                Confirm Pickup
-              </Button>
-            </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={handleConfirm}
+                    disabled={!canConfirm}
+                    className="flex-1"
+                  >
+                    Confirm Pickup
+                  </Button>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="py-8 text-center animate-scale-in">

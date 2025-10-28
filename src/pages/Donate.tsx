@@ -48,6 +48,7 @@ export default function Donate() {
   const [clothingType, setClothingType] = useState<string>();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState<string>();
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
   const selectedClothing = clothingTypes.find((item) => item.value === clothingType);
   const pointsEarned = selectedClothing?.points || 0;
@@ -158,7 +159,7 @@ export default function Donate() {
                     <CalendarIcon className="w-4 h-4 text-primary" />
                     Drop-off Date
                   </label>
-                  <Popover>
+                  <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -175,7 +176,7 @@ export default function Donate() {
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={setDate}
+                        onSelect={(d) => { setDate(d); setIsDatePopoverOpen(false); }}
                         disabled={(date) =>
                           date < new Date() || date.getDay() === 0 || date.getDay() === 6
                         }

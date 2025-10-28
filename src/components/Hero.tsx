@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Recycle, Gift } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -5,10 +6,32 @@ import heroImage from "@/assets/hero-sustainable-fashion.jpg";
 
 export const Hero = () => {
   const navigate = useNavigate();
+  const [checkoutCount, setCheckoutCount] = useState<number>(0);
   
   const scrollToSwipe = () => {
     document.getElementById('swipe-section')?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    const key = 'rewearCheckoutCount';
+    // Initialize from localStorage
+    const initial = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+    setCheckoutCount(initial);
+
+    const handleIncrement = (e: Event) => {
+      // If detail is provided, use it; otherwise read from storage
+      const detailValue = (e as CustomEvent<number>).detail;
+      if (typeof detailValue === 'number') {
+        setCheckoutCount(detailValue);
+      } else {
+        const current = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+        setCheckoutCount(current);
+      }
+    };
+
+    window.addEventListener('checkout:increment', handleIncrement as EventListener);
+    return () => window.removeEventListener('checkout:increment', handleIncrement as EventListener);
+  }, []);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-soft">
@@ -68,16 +91,16 @@ export const Hero = () => {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mt-16">
             <div className="bg-card/60 backdrop-blur-sm rounded-2xl p-6 shadow-soft hover:shadow-card transition-all duration-300 hover:scale-105">
-              <div className="text-3xl font-bold text-primary mb-1">2,500+</div>
+              <div className="text-3xl font-bold text-primary mb-1">1+</div>
               <div className="text-sm text-muted-foreground">Items Exchanged</div>
             </div>
             <div className="bg-card/60 backdrop-blur-sm rounded-2xl p-6 shadow-soft hover:shadow-card transition-all duration-300 hover:scale-105">
-              <div className="text-3xl font-bold text-primary mb-1">800+</div>
-              <div className="text-sm text-muted-foreground">Active Members</div>
+              <div className="text-3xl font-bold text-primary mb-1">{checkoutCount}</div>
+              <div className="text-sm text-muted-foreground">Checkouts Completed</div>
             </div>
             <div className="bg-card/60 backdrop-blur-sm rounded-2xl p-6 shadow-soft hover:shadow-card transition-all duration-300 hover:scale-105">
-              <div className="text-3xl font-bold text-primary mb-1">50kg</div>
-              <div className="text-sm text-muted-foreground">CO₂ Saved</div>
+              <div className="text-3xl font-bold text-primary mb-1">~50kg</div>
+              <div className="text-sm text-muted-foreground">CO₂ could be saved</div>
             </div>
           </div>
         </div>

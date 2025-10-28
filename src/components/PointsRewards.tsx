@@ -39,7 +39,7 @@ const rewards = [
 
 export const PointsRewards = () => {
   return (
-    <section className="py-20 bg-background">
+    <section id="rewards-section" className="py-20 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16 animate-fade-in">
           <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">

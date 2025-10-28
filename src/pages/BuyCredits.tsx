@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, CreditCard, Heart, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { addCredits, getCredits } from "@/lib/credits";
 
 const creditPackages = [
   { id: 1, points: 10, price: 1, popular: false },
@@ -18,10 +19,22 @@ export default function BuyCredits() {
   const [selectedPackage, setSelectedPackage] = useState(creditPackages[1]);
   const [donationAmount, setDonationAmount] = useState(0);
   const [step, setStep] = useState<"select" | "confirmed">("select");
+  const [currentCredits, setCurrentCredits] = useState<number>(getCredits());
 
   const handlePurchase = () => {
+    addCredits(selectedPackage.points);
+    setCurrentCredits(getCredits());
     setStep("confirmed");
   };
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<number>).detail;
+      setCurrentCredits(typeof detail === 'number' ? detail : getCredits());
+    };
+    window.addEventListener('credits:update', handler as EventListener);
+    return () => window.removeEventListener('credits:update', handler as EventListener);
+  }, []);
 
   if (step === "confirmed") {
     return (
@@ -35,6 +48,7 @@ export default function BuyCredits() {
             You've purchased {selectedPackage.points} ReWear Points
             {donationAmount > 0 && ` and donated $${donationAmount}`}
           </p>
+          <p className="text-sm text-muted-foreground mb-4">Your new balance: <strong>{currentCredits}</strong> credits</p>
           <p className="text-sm text-muted-foreground mb-8">
             100% of your contribution goes to support sustainable fashion and help those in need. Together, we're making a difference! 🌱
           </p>
